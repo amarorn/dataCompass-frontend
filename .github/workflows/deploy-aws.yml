@@ -447,12 +447,11 @@ jobs:
     
     steps:
     - name: Notify Slack on Success
-      if: success()
+      if: success() && vars.SLACK_WEBHOOK_URL != ''
       uses: 8398a7/action-slack@v3
       with:
         status: success
         channel: '#deployments'
-        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
         fields: repo,message,commit,author,action,eventName,ref,workflow
         text: |
           🎉 DataCompass Frontend deployed successfully to production!
@@ -463,12 +462,11 @@ jobs:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         
     - name: Notify Slack on Failure
-      if: failure()
+      if: failure() && vars.SLACK_WEBHOOK_URL != ''
       uses: 8398a7/action-slack@v3
       with:
         status: failure
         channel: '#deployments'
-        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
         fields: repo,message,commit,author,action,eventName,ref,workflow
         text: |
           ❌ DataCompass Frontend deployment failed!
