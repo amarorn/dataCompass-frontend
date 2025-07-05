@@ -151,8 +151,28 @@ jobs:
       run: |
         echo "🧪 Testing Docker image..."
         docker run --rm -d --name test-container -p 8080:8080 $ECR_REPOSITORY:$IMAGE_TAG
-        sleep 10
-        curl -f http://localhost:8080/health || echo "Health check failed"
+        sleep 15
+        
+        # Test if the application is responding
+        echo "Testing application response..."
+        if curl -f -s http://localhost:8080/ | grep -q "DataCompass\|React\|html"; then
+          echo "✅ Application is responding correctly"
+        else
+          echo "❌ Application test failed"
+          docker logs test-container
+          docker stop test-container
+          exit 1
+        fi
+        
+        # Test if static assets are being served
+        echo "Testing static assets..."
+        if curl -f -s -I http://localhost:8080/static/ 2>/dev/null || curl -f -s -I http://localhost:8080/assets/ 2>/dev/null; then
+          echo "✅ Static assets are being served"
+        else
+          echo "⚠️ Static assets test inconclusive (may be normal)"
+        fi
+        
+        echo "🎉 Docker image test completed successfully"
         docker stop test-container
         
     - name: Push image to ECR
