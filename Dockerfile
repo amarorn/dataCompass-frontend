@@ -34,30 +34,30 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Copiar arquivos buildados do estágio anterior
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Criar usuário não-root para segurança
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nextjs -u 1001 -G nodejs
+# Criar diretório para PID do nginx com permissões corretas
+RUN mkdir -p /var/cache/nginx/client_temp && \
+    mkdir -p /var/cache/nginx/proxy_temp && \
+    mkdir -p /var/cache/nginx/fastcgi_temp && \
+    mkdir -p /var/cache/nginx/uwsgi_temp && \
+    mkdir -p /var/cache/nginx/scgi_temp && \
+    mkdir -p /var/log/nginx && \
+    mkdir -p /var/run && \
+    touch /var/run/nginx.pid
 
-# Ajustar permissões
-RUN chown -R nextjs:nodejs /usr/share/nginx/html && \
-    chown -R nextjs:nodejs /var/cache/nginx && \
-    chown -R nextjs:nodejs /var/log/nginx && \
-    chown -R nextjs:nodejs /etc/nginx/conf.d
-
-# Criar diretórios necessários para nginx
-RUN touch /var/run/nginx.pid && \
-    chown -R nextjs:nodejs /var/run/nginx.pid
-
-# Mudar para usuário não-root
-USER nextjs
+# Ajustar permissões para nginx funcionar
+RUN chmod -R 755 /usr/share/nginx/html && \
+    chmod -R 755 /var/cache/nginx && \
+    chmod -R 755 /var/log/nginx && \
+    chmod 644 /etc/nginx/conf.d/default.conf && \
+    chmod 755 /var/run/nginx.pid
 
 # Expor porta
 EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8080/ || exit 1
+  CMD curl -f http://localhost:8080/health || exit 1
 
-# Comando para iniciar nginx
+# Comando para iniciar nginx em foreground
 CMD ["nginx", "-g", "daemon off;"]
 
