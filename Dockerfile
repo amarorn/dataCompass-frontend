@@ -27,9 +27,9 @@ FROM nginx:alpine AS production
 # Instalar curl para health checks
 RUN apk add --no-cache curl
 
-# Criar usuário nginx com UID 1001 (compatível com Kubernetes)
-RUN addgroup -g 1001 -S nginx && \
-    adduser -S -D -H -u 1001 -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx
+# Criar usuário app com UID 1001 (evitando conflito com nginx existente)
+RUN addgroup -g 1001 -S app && \
+    adduser -S -D -H -u 1001 -h /var/cache/nginx -s /sbin/nologin -G app -g app app
 
 # Copiar configurações do nginx
 COPY nginx-main.conf /etc/nginx/nginx.conf
