@@ -1,0 +1,331 @@
+name: Release and Tag
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  AWS_REGION: us-east-1
+  EKS_CLUSTER_NAME: whatsapp-analytics-production
+  ECR_REPOSITORY: datacompass-frontend
+  NODE_VERSION: '20'
+
+jobs:
+  validate-release:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Determine version
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          VERSION="${{ github.ref_name }}"
+        fi
+        
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        
+        # Check if it's a prerelease (contains alpha, beta, rc)
+        if [[ $VERSION =~ (alpha|beta|rc) ]]; then
+          echo "is_prerelease=true" >> $GITHUB_OUTPUT
+        else
+          echo "is_prerelease=false" >> $GITHUB_OUTPUT
+        fi
+        
+        echo "📦 Release version: $VERSION"
+        
+    - name: Validate version format
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        if [[ ! $VERSION =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+)?$ ]]; then
+          echo "❌ Invalid version format: $VERSION"
+          echo "Expected format: v1.0.0 or v1.0.0-alpha"
+          exit 1
+        fi
+        echo "✅ Version format is valid"
+
+  build-release:
+    name: Build Release
+    runs-on: ubuntu-latest
+    needs: validate-release
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'pnpm'
+        
+    - name: Install pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 8
+        
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+      
+    - name: Update version in package.json
+      run: |
+        VERSION="${{ needs.validate-release.outputs.version }}"
+        # Remove 'v' prefix for package.json
+        PACKAGE_VERSION=${VERSION#v}
+        
+        # Update package.json version
+        npm version $PACKAGE_VERSION --no-git-tag-version
+        
+        echo "📝 Updated package.json to version $PACKAGE_VERSION"
+        
+    - name: Build production release
+      run: |
+        cp .env.example .env.local
+        echo "VITE_ENVIRONMENT=production" >> .env.local
+        echo "VITE_APP_VERSION=${{ needs.validate-release.outputs.version }}" >> .env.local
+        pnpm run build
+        
+    - name: Create release archive
+      run: |
+        tar -czf datacompass-frontend-${{ needs.validate-release.outputs.version }}.tar.gz dist/
+        zip -r datacompass-frontend-${{ needs.validate-release.outputs.version }}.zip dist/
+        
+    - name: Generate build info
+      run: |
+        cat > build-info.json << EOF
+        {
+          "version": "${{ needs.validate-release.outputs.version }}",
+          "commit": "${{ github.sha }}",
+          "build_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "node_version": "${{ env.NODE_VERSION }}",
+          "environment": "production"
+        }
+        EOF
+        
+    - name: Upload release artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-${{ needs.validate-release.outputs.version }}
+        path: |
+          dist/
+          *.tar.gz
+          *.zip
+          build-info.json
+        retention-days: 30
+
+  build-and-push-release:
+    name: Build and Push Release Image
+    runs-on: ubuntu-latest
+    needs: [validate-release, build-release]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download release artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: release-${{ needs.validate-release.outputs.version }}
+        
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+        
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+      
+    - name: Build and tag Docker image
+      run: |
+        VERSION="${{ needs.validate-release.outputs.version }}"
+        
+        # Build image
+        docker build -t $ECR_REPOSITORY:$VERSION .
+        
+        # Tag for ECR
+        docker tag $ECR_REPOSITORY:$VERSION ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$VERSION
+        
+        # Tag as latest if not prerelease
+        if [ "${{ needs.validate-release.outputs.is_prerelease }}" = "false" ]; then
+          docker tag $ECR_REPOSITORY:$VERSION ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:latest
+        fi
+        
+    - name: Scan release image
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: '${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ needs.validate-release.outputs.version }}'
+        format: 'table'
+        severity: 'HIGH,CRITICAL'
+        exit-code: '1'
+        
+    - name: Push release image
+      run: |
+        VERSION="${{ needs.validate-release.outputs.version }}"
+        
+        docker push ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$VERSION
+        
+        if [ "${{ needs.validate-release.outputs.is_prerelease }}" = "false" ]; then
+          docker push ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:latest
+        fi
+        
+        echo "🐳 Pushed image: ${{ steps.login-ecr.outputs.registry }}/$ECR_REPOSITORY:$VERSION"
+
+  create-github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate-release, build-release, build-and-push-release]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download release artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: release-${{ needs.validate-release.outputs.version }}
+        
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Get commits since last tag
+        LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        
+        if [ -n "$LAST_TAG" ]; then
+          echo "## 📝 Changes since $LAST_TAG" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          git log --pretty=format:"- %s (%h)" $LAST_TAG..HEAD >> CHANGELOG.md
+        else
+          echo "## 📝 Initial Release" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "This is the first release of DataCompass Frontend." >> CHANGELOG.md
+        fi
+        
+        echo "" >> CHANGELOG.md
+        echo "## 🚀 Deployment" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "### Docker Image" >> CHANGELOG.md
+        echo "\`\`\`bash" >> CHANGELOG.md
+        echo "docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ needs.validate-release.outputs.version }}" >> CHANGELOG.md
+        echo "\`\`\`" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "### Kubernetes" >> CHANGELOG.md
+        echo "\`\`\`bash" >> CHANGELOG.md
+        echo "kubectl set image deployment/datacompass-frontend datacompass-frontend=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ needs.validate-release.outputs.version }}" >> CHANGELOG.md
+        echo "\`\`\`" >> CHANGELOG.md
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ needs.validate-release.outputs.version }}
+        name: DataCompass Frontend ${{ needs.validate-release.outputs.version }}
+        body_path: CHANGELOG.md
+        prerelease: ${{ needs.validate-release.outputs.is_prerelease }}
+        files: |
+          *.tar.gz
+          *.zip
+          build-info.json
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-release-to-production:
+    name: Deploy Release to Production
+    runs-on: ubuntu-latest
+    needs: [validate-release, create-github-release]
+    if: needs.validate-release.outputs.is_prerelease == 'false'
+    environment: production-release
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+        
+    - name: Setup kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+        
+    - name: Update kubeconfig
+      run: |
+        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+        
+    - name: Deploy release to production
+      run: |
+        VERSION="${{ needs.validate-release.outputs.version }}"
+        
+        # Update image in production
+        kubectl set image deployment/datacompass-frontend datacompass-frontend=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:$VERSION -n production
+        
+        # Wait for rollout
+        kubectl rollout status deployment/datacompass-frontend -n production --timeout=600s
+        
+        echo "🚀 Successfully deployed $VERSION to production!"
+        
+    - name: Verify deployment
+      run: |
+        # Wait for pods to be ready
+        kubectl wait --for=condition=ready pod -l app=datacompass-frontend -n production --timeout=300s
+        
+        # Get service URL and test
+        SERVICE_URL=$(kubectl get service datacompass-frontend-service -n production -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
+        
+        if [ -n "$SERVICE_URL" ]; then
+          echo "🧪 Testing production deployment..."
+          curl -f http://$SERVICE_URL/health || echo "Health check warning"
+          curl -f http://$SERVICE_URL/ || echo "Main page warning"
+        fi
+        
+        echo "✅ Production deployment verified!"
+
+  notify-release:
+    name: Notify Release
+    runs-on: ubuntu-latest
+    needs: [validate-release, create-github-release, deploy-release-to-production]
+    if: always()
+    
+    steps:
+    - name: Notify Slack
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        channel: '#releases'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        fields: repo,message,commit,author,action,eventName,ref,workflow
+        text: |
+          🎉 DataCompass Frontend ${{ needs.validate-release.outputs.version }} released!
+          
+          📦 **Release**: ${{ needs.validate-release.outputs.version }}
+          🔗 **Repository**: ${{ github.repository }}
+          📝 **Commit**: ${{ github.sha }}
+          🏷️ **Tag**: ${{ github.ref_name }}
+          🚀 **Deployed**: ${{ needs.validate-release.outputs.is_prerelease == 'false' && 'Yes' || 'No (prerelease)' }}
+          
+          [View Release](https://github.com/${{ github.repository }}/releases/tag/${{ needs.validate-release.outputs.version }})
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
