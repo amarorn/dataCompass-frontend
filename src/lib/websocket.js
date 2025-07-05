@@ -84,7 +84,7 @@ export const useWebSocket = (options = {}) => {
         }
       }
 
-      ws.current.onerror = (event) => {
+      ws.current.onerror = () => {
         const error = new Error('WebSocket error')
         setError(error)
         onError?.(error)
@@ -184,7 +184,7 @@ export const useRealTimeStats = () => {
     onlineUsers: 0,
   })
 
-  useWebSocket({
+  const { sendMessage } = useWebSocket({
     onMessage: (data) => {
       if (data.type === 'stats_update') {
         setStats(prev => ({ ...prev, ...data.payload }))

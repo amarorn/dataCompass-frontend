@@ -10,7 +10,7 @@ export const useApi = (endpoint, options = {}) => {
   const {
     immediate = true,
     method = 'GET',
-    dependencies = [],
+    dependencies: _dependencies = [],
     onSuccess,
     onError,
   } = options
@@ -61,13 +61,13 @@ export const useApi = (endpoint, options = {}) => {
     } finally {
       setLoading(false)
     }
-  }, [endpoint, method, onSuccess, onError, ...dependencies])
+  }, [endpoint, method, onSuccess, onError, options])
 
   useEffect(() => {
     if (immediate && endpoint) {
       execute()
     }
-  }, [execute, immediate])
+  }, [execute, immediate, endpoint])
 
   return {
     data,
@@ -105,7 +105,7 @@ export const useApiList = (endpoint, options = {}) => {
 
   const finalEndpoint = `${endpoint}?${queryParams}`
 
-  const { data, loading, error, execute } = useApi(finalEndpoint, {
+  const { data: _data, loading, error, execute } = useApi(finalEndpoint, {
     ...apiOptions,
     onSuccess: (result) => {
       if (result.items) {
