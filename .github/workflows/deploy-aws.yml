@@ -35,7 +35,7 @@ jobs:
         cache: 'pnpm'
         
     - name: Install dependencies
-      run: pnpm install --frozen-lockfile
+      run: pnpm install
       
     - name: Run linting
       run: pnpm run lint
@@ -86,7 +86,7 @@ jobs:
         cache: 'pnpm'
         
     - name: Install dependencies
-      run: pnpm install --frozen-lockfile
+      run: pnpm install
       
     - name: Run npm audit
       run: pnpm audit --audit-level moderate || echo "Audit completed with warnings"

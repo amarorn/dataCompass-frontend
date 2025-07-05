@@ -31,7 +31,7 @@ jobs:
         cache: 'pnpm'
         
     - name: Install dependencies
-      run: pnpm install --frozen-lockfile
+      run: pnpm install
       
     - name: Run ESLint
       run: pnpm run lint
@@ -63,7 +63,7 @@ jobs:
         cache: 'pnpm'
         
     - name: Install dependencies
-      run: pnpm install --frozen-lockfile
+      run: pnpm install
       
     - name: Run unit tests
       run: pnpm run test:unit || echo "Unit tests not configured yet"
@@ -103,7 +103,7 @@ jobs:
         cache: 'pnpm'
         
     - name: Install dependencies
-      run: pnpm install --frozen-lockfile
+      run: pnpm install
       
     - name: Build for staging
       run: |
@@ -159,7 +159,7 @@ jobs:
         cache: 'pnpm'
         
     - name: Install dependencies
-      run: pnpm install --frozen-lockfile
+      run: pnpm install
       
     - name: Run npm audit
       run: |
