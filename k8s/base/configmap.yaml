@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: datacompass-frontend-config
+  labels:
+    app: datacompass-frontend
+data:
+  # URL da API do backend (será ajustada por ambiente)
+  api-url: "http://whatsapp-analytics-api-service.default.svc.cluster.local"
+  
+  # Configurações da aplicação
+  app-name: "DataCompass"
+  app-version: "1.0.0"
+  
+  # Configurações do Nginx
+  nginx-worker-processes: "auto"
+  nginx-worker-connections: "1024"
+
