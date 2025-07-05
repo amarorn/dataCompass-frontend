@@ -247,13 +247,30 @@ jobs:
       with:
         version: 'latest'
         
-    - name: Update kubeconfig
+    - name: Update kubeconfig and verify access
       run: |
+        echo "🔧 Configuring kubectl for EKS cluster..."
         aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+        
+        echo "🔍 Verifying AWS identity..."
+        aws sts get-caller-identity
+        
+        echo "🔍 Testing kubectl connectivity..."
+        kubectl version --client
+        kubectl cluster-info
+        
+        echo "🔍 Testing basic kubectl access..."
+        kubectl auth can-i get pods --all-namespaces || echo "⚠️ Limited permissions detected"
         
     - name: Create namespace if not exists
       run: |
-        kubectl create namespace staging --dry-run=client -o yaml | kubectl apply -f -
+        echo "📦 Creating staging namespace..."
+        kubectl create namespace staging --dry-run=client -o yaml | kubectl apply -f - || {
+          echo "❌ Failed to create namespace. Checking cluster access..."
+          kubectl get namespaces || echo "❌ Cannot list namespaces"
+          kubectl auth can-i create namespaces || echo "❌ No permission to create namespaces"
+          exit 1
+        }
         
     - name: Deploy to staging using Kustomize
       run: |
@@ -332,13 +349,30 @@ jobs:
       with:
         version: 'latest'
         
-    - name: Update kubeconfig
+    - name: Update kubeconfig and verify access
       run: |
+        echo "🔧 Configuring kubectl for EKS cluster..."
         aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+        
+        echo "🔍 Verifying AWS identity..."
+        aws sts get-caller-identity
+        
+        echo "🔍 Testing kubectl connectivity..."
+        kubectl version --client
+        kubectl cluster-info
+        
+        echo "🔍 Testing basic kubectl access..."
+        kubectl auth can-i get pods --all-namespaces || echo "⚠️ Limited permissions detected"
         
     - name: Create namespace if not exists
       run: |
-        kubectl create namespace production --dry-run=client -o yaml | kubectl apply -f -
+        echo "📦 Creating production namespace..."
+        kubectl create namespace production --dry-run=client -o yaml | kubectl apply -f - || {
+          echo "❌ Failed to create namespace. Checking cluster access..."
+          kubectl get namespaces || echo "❌ Cannot list namespaces"
+          kubectl auth can-i create namespaces || echo "❌ No permission to create namespaces"
+          exit 1
+        }
         
     - name: Deploy to production using Kustomize
       run: |

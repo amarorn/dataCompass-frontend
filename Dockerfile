@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Copiar arquivos de dependências
 COPY package.json ./
-# Note: Removendo pnpm-lock.yaml pois pode não existir
+# Copiar pnpm-lock.yaml se existir
 COPY pnpm-lock.yaml* ./
 
 # Instalar pnpm
@@ -40,7 +40,7 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 RUN addgroup -g 101 -S nginx || true && \
     adduser -S -D -H -u 101 -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx || true
 
-# Criar diretórios necessários e ajustar permissões
+# Criar diretórios necessários e ajustar permissões (versão simplificada)
 RUN mkdir -p /var/cache/nginx && \
     mkdir -p /var/log/nginx && \
     mkdir -p /var/run && \
