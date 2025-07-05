@@ -27,7 +27,12 @@ FROM nginx:alpine AS production
 # Instalar curl para health checks
 RUN apk add --no-cache curl
 
-# Copiar configuração customizada do nginx
+# Criar usuário nginx com UID 1001 (compatível com Kubernetes)
+RUN addgroup -g 1001 -S nginx && \
+    adduser -S -D -H -u 1001 -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx
+
+# Copiar configurações do nginx
+COPY nginx-main.conf /etc/nginx/nginx.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Remover configuração padrão do nginx
@@ -36,18 +41,28 @@ RUN rm -f /etc/nginx/conf.d/default.conf.default
 # Copiar arquivos buildados do estágio anterior
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Criar usuário nginx se não existir e ajustar permissões
-RUN addgroup -g 101 -S nginx || true && \
-    adduser -S -D -H -u 101 -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx || true
-
-# Criar diretórios necessários e ajustar permissões (versão simplificada)
-RUN mkdir -p /var/cache/nginx && \
+# Criar diretórios necessários e ajustar permissões para UID 1001
+RUN mkdir -p /var/cache/nginx/client_temp && \
+    mkdir -p /var/cache/nginx/proxy_temp && \
+    mkdir -p /var/cache/nginx/fastcgi_temp && \
+    mkdir -p /var/cache/nginx/uwsgi_temp && \
+    mkdir -p /var/cache/nginx/scgi_temp && \
     mkdir -p /var/log/nginx && \
     mkdir -p /var/run && \
-    chown -R nginx:nginx /var/cache/nginx && \
-    chown -R nginx:nginx /var/log/nginx && \
-    chown -R nginx:nginx /usr/share/nginx/html && \
-    chmod -R 755 /usr/share/nginx/html
+    mkdir -p /tmp && \
+    chown -R 1001:1001 /var/cache/nginx && \
+    chown -R 1001:1001 /var/log/nginx && \
+    chown -R 1001:1001 /var/run && \
+    chown -R 1001:1001 /usr/share/nginx/html && \
+    chown -R 1001:1001 /tmp && \
+    chown -R 1001:1001 /etc/nginx && \
+    chmod -R 755 /usr/share/nginx/html && \
+    chmod -R 755 /var/cache/nginx && \
+    chmod -R 755 /var/log/nginx && \
+    chmod -R 755 /var/run && \
+    chmod -R 755 /tmp && \
+    chmod -R 644 /etc/nginx/nginx.conf && \
+    chmod -R 644 /etc/nginx/conf.d/default.conf
 
 # Expor porta
 EXPOSE 8080
@@ -55,6 +70,9 @@ EXPOSE 8080
 # Health check simples
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:8080/health || exit 1
+
+# Mudar para usuário não-root
+USER 1001
 
 # Comando para iniciar nginx em foreground
 CMD ["nginx", "-g", "daemon off;"]
