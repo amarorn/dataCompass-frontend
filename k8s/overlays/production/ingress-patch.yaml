@@ -2,10 +2,12 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: datacompass-frontend-ingress
+  annotations:
+    alb.ingress.kubernetes.io/load-balancer-name: "datacompass-frontend-production-alb"
+    alb.ingress.kubernetes.io/tags: "Environment=production,Project=datacompass,Component=frontend"
 spec:
   rules:
-  - host: datacompass.yourdomain.com
-    http:
+  - http:
       paths:
       - path: /
         pathType: Prefix
