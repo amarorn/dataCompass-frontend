@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Users, MessageSquare, TrendingUp, Activity, Phone, Mail, Building, Calendar } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Button } from '@/components/ui/button.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts'
+import ApiTest from './ApiTest.jsx'
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -92,6 +93,9 @@ const Dashboard = () => {
           Navegue pelos seus dados do WhatsApp e descubra insights valiosos sobre seus usuários.
         </p>
       </div>
+
+      {/* API Connection Test */}
+      <ApiTest />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

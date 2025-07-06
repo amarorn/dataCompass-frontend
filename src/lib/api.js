@@ -1,6 +1,6 @@
 // Configuração centralizada da API
 const API_CONFIG = {
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   timeout: parseInt(import.meta.env.VITE_API_TIMEOUT) || 30000,
   headers: {
     'Content-Type': 'application/json',
@@ -44,6 +44,14 @@ export const apiRequest = async (endpoint, options = {}) => {
     clearTimeout(timeoutId)
 
     if (!response.ok) {
+      // Tratamento específico para diferentes códigos de erro
+      if (response.status === 401) {
+        // Token expirado ou inválido
+        localStorage.removeItem(import.meta.env.VITE_JWT_STORAGE_KEY || 'datacompass_token')
+        window.location.href = '/login'
+        throw new Error('Unauthorized - redirecting to login')
+      }
+      
       throw new Error(`HTTP error! status: ${response.status}`)
     }
 
@@ -91,7 +99,7 @@ export const api = {
     apiRequest(endpoint, { ...options, method: 'DELETE' }),
 }
 
-// Endpoints específicos da API
+// Endpoints específicos da API WhatsApp Analytics
 export const endpoints = {
   // Autenticação
   auth: {
@@ -99,6 +107,7 @@ export const endpoints = {
     register: '/auth/register',
     refresh: '/auth/refresh',
     logout: '/auth/logout',
+    verify: '/auth/verify',
   },
   
   // Usuários
@@ -109,14 +118,17 @@ export const endpoints = {
     update: (id) => `/users/${id}`,
     delete: (id) => `/users/${id}`,
     stats: '/users/stats',
+    profile: '/users/profile',
   },
   
-  // Mensagens
+  // Mensagens WhatsApp
   messages: {
     list: '/messages',
     get: (id) => `/messages/${id}`,
+    send: '/messages/send',
     stats: '/messages/stats',
     types: '/messages/types',
+    history: '/messages/history',
   },
   
   // Analytics
@@ -125,6 +137,16 @@ export const endpoints = {
     registrations: '/analytics/registrations',
     activity: '/analytics/activity',
     growth: '/analytics/growth',
+    engagement: '/analytics/engagement',
+    reports: '/analytics/reports',
+  },
+  
+  // WhatsApp específico
+  whatsapp: {
+    webhook: '/whatsapp/webhook',
+    status: '/whatsapp/status',
+    templates: '/whatsapp/templates',
+    contacts: '/whatsapp/contacts',
   },
   
   // Configurações
@@ -132,10 +154,27 @@ export const endpoints = {
     get: '/settings',
     update: '/settings',
     test: '/settings/test',
+    whatsapp: '/settings/whatsapp',
   },
   
   // Health check
   health: '/health',
+  
+  // Dashboard
+  dashboard: {
+    overview: '/dashboard/overview',
+    stats: '/dashboard/stats',
+  },
+}
+
+// Função para testar conectividade com a API
+export const testApiConnection = async () => {
+  try {
+    const response = await api.get(endpoints.health)
+    return { success: true, data: response }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
 }
 
 export default api

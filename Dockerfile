@@ -15,8 +15,11 @@ RUN npm install -g pnpm
 # Instalar dependências
 RUN pnpm install
 
-# Copiar código fonte
+# Copiar código fonte e configurações
 COPY . .
+
+# Copiar configurações de produção
+COPY .env.production .env
 
 # Build da aplicação
 RUN pnpm run build
