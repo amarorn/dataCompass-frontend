@@ -1,0 +1,80 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: datacompass-unified-ingress
+  annotations:
+    # Production-specific annotations
+    alb.ingress.kubernetes.io/load-balancer-name: "ultimatesystems-production-alb"
+    alb.ingress.kubernetes.io/tags: "Environment=production,Project=datacompass,Component=unified,Owner=ultimatesystems"
+    
+    # SSL/TLS Configuration
+    alb.ingress.kubernetes.io/ssl-policy: "ELBSecurityPolicy-TLS-1-2-2017-01"
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:us-east-1:028425947301:certificate/66b70860-239e-4e7c-b81a-56f40159dd57"
+    
+    # Security Headers
+    alb.ingress.kubernetes.io/actions.security-headers: |
+      {
+        "type": "response-headers",
+        "responseHeadersConfig": {
+          "customHeaders": {
+            "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+            "X-Content-Type-Options": "nosniff",
+            "X-Frame-Options": "DENY",
+            "X-XSS-Protection": "1; mode=block",
+            "Referrer-Policy": "strict-origin-when-cross-origin",
+            "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.ultimatesystems.io",
+            "Access-Control-Allow-Origin": "https://ultimatesystems.io",
+            "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type,Authorization,X-Requested-With",
+            "Access-Control-Allow-Credentials": "true"
+          }
+        }
+      }
+    
+    # Performance and Monitoring
+    alb.ingress.kubernetes.io/healthcheck-path: "/health"
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '3'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/success-codes: '200,301,302'
+    
+    # Load Balancer Configuration
+    alb.ingress.kubernetes.io/target-group-attributes: |
+      stickiness.enabled=false,
+      stickiness.lb_cookie.duration_seconds=86400,
+      deregistration_delay.timeout_seconds=30,
+      load_balancing.algorithm.type=round_robin
+    
+    # Logging
+    alb.ingress.kubernetes.io/load-balancer-attributes: |
+      access_logs.s3.enabled=true,
+      access_logs.s3.bucket=ultimatesystems-alb-logs,
+      access_logs.s3.prefix=production
+spec:
+  rules:
+  # Frontend - ultimatesystems.io (Production)
+  - host: ultimatesystems.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: datacompass-frontend-service
+            port:
+              number: 80
+  
+  # API - api.ultimatesystems.io (Production)
+  - host: api.ultimatesystems.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: whatsapp-analytics-api-service
+            port:
+              number: 80
+

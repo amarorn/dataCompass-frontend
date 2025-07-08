@@ -1,0 +1,48 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: datacompass-production-unified
+  namespace: datacompass-production
+
+resources:
+  - ../../base/kustomization-unified.yaml
+
+namespace: datacompass-production
+
+commonLabels:
+  environment: production
+  cluster: ultimatesystems-production
+
+patchesStrategicMerge:
+  - deployment-patch.yaml
+  - ingress-patch-unified.yaml
+
+images:
+  - name: datacompass-frontend
+    newName: 028425947301.dkr.ecr.us-east-1.amazonaws.com/datacompass-frontend
+    newTag: latest
+  - name: datacompass-api
+    newName: 028425947301.dkr.ecr.us-east-1.amazonaws.com/datacompass-api
+    newTag: latest
+
+replicas:
+  - name: datacompass-frontend
+    count: 3
+  - name: whatsapp-analytics-api
+    count: 5
+
+configMapGenerator:
+  - name: production-config
+    behavior: merge
+    literals:
+      - ENVIRONMENT=production
+      - LOG_LEVEL=info
+      - SSL_ENABLED=true
+      - FORCE_HTTPS=true
+      - TRUST_PROXY=true
+      - CORS_CREDENTIALS=true
+      - RATE_LIMIT_ENABLED=true
+      - SECURITY_HEADERS_ENABLED=true
+      - CSP_ENABLED=true
+

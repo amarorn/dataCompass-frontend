@@ -29,11 +29,37 @@ spec:
           valueFrom:
             configMapKeyRef:
               name: datacompass-frontend-config
-              key: api-url
+              key: external-api-url
+        - name: VITE_API_BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: datacompass-frontend-config
+              key: api-base-url
+        - name: VITE_BASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: datacompass-frontend-config
+              key: base-url
         - name: VITE_APP_NAME
-          value: "DataCompass"
+          valueFrom:
+            configMapKeyRef:
+              name: datacompass-frontend-config
+              key: app-name
         - name: VITE_APP_VERSION
-          value: "1.0.0"
+          valueFrom:
+            configMapKeyRef:
+              name: datacompass-frontend-config
+              key: app-version
+        - name: VITE_DOMAIN_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: datacompass-frontend-config
+              key: domain-name
+        - name: VITE_API_DOMAIN
+          valueFrom:
+            configMapKeyRef:
+              name: datacompass-frontend-config
+              key: api-domain
         resources:
           requests:
             memory: "128Mi"
