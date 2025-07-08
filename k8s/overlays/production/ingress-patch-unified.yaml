@@ -24,7 +24,7 @@ metadata:
             "X-XSS-Protection": "1; mode=block",
             "Referrer-Policy": "strict-origin-when-cross-origin",
             "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.ultimatesystems.io",
-            "Access-Control-Allow-Origin": "https://ultimatesystems.io",
+            "Access-Control-Allow-Origin": "https://dashboard.ultimatesystems.io",
             "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type,Authorization,X-Requested-With",
             "Access-Control-Allow-Credentials": "true"
@@ -54,15 +54,15 @@ metadata:
       access_logs.s3.prefix=production
 spec:
   rules:
-  # Frontend - ultimatesystems.io (Production)
-  - host: ultimatesystems.io
+  # Dashboard Analytics - dashboard.ultimatesystems.io (Production)
+  - host: dashboard.ultimatesystems.io
     http:
       paths:
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: datacompass-frontend-service
+            name: datacompass-dashboard-service
             port:
               number: 80
   
@@ -74,7 +74,33 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: whatsapp-analytics-api-service
+            name: datacompass-api-service
+            port:
+              number: 80
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: datacompass-api-service
+            port:
+              number: 80
+      - path: /health
+        pathType: Prefix
+        backend:
+          service:
+            name: datacompass-api-service
+            port:
+              number: 80
+  
+  # Admin Panel - administrativo.ultimatesystems.io (Production)
+  - host: administrativo.ultimatesystems.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: datacompass-dashboard-service
             port:
               number: 80
 

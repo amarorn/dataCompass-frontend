@@ -1,23 +1,28 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: datacompass-frontend
+  name: datacompass-dashboard
   labels:
-    app: datacompass-frontend
+    app: datacompass-dashboard
+    component: frontend
+    tier: presentation
     version: v1
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: datacompass-frontend
+      app: datacompass-dashboard
+      component: frontend
   template:
     metadata:
       labels:
-        app: datacompass-frontend
+        app: datacompass-dashboard
+        component: frontend
+        tier: presentation
         version: v1
     spec:
       containers:
-      - name: datacompass-frontend
+      - name: dashboard-frontend
         image: IMAGE_TAG_PLACEHOLDER
         ports:
         - containerPort: 8080
@@ -28,38 +33,43 @@ spec:
         - name: VITE_API_URL
           valueFrom:
             configMapKeyRef:
-              name: datacompass-frontend-config
+              name: datacompass-dashboard-config
               key: external-api-url
         - name: VITE_API_BASE_URL
           valueFrom:
             configMapKeyRef:
-              name: datacompass-frontend-config
+              name: datacompass-dashboard-config
               key: api-base-url
         - name: VITE_BASE_URL
           valueFrom:
             configMapKeyRef:
-              name: datacompass-frontend-config
-              key: base-url
+              name: datacompass-dashboard-config
+              key: dashboard-url
         - name: VITE_APP_NAME
           valueFrom:
             configMapKeyRef:
-              name: datacompass-frontend-config
+              name: datacompass-dashboard-config
               key: app-name
         - name: VITE_APP_VERSION
           valueFrom:
             configMapKeyRef:
-              name: datacompass-frontend-config
+              name: datacompass-dashboard-config
               key: app-version
         - name: VITE_DOMAIN_NAME
           valueFrom:
             configMapKeyRef:
-              name: datacompass-frontend-config
+              name: datacompass-dashboard-config
               key: domain-name
         - name: VITE_API_DOMAIN
           valueFrom:
             configMapKeyRef:
-              name: datacompass-frontend-config
+              name: datacompass-dashboard-config
               key: api-domain
+        - name: VITE_DASHBOARD_DOMAIN
+          valueFrom:
+            configMapKeyRef:
+              name: datacompass-dashboard-config
+              key: dashboard-domain
         resources:
           requests:
             memory: "128Mi"
