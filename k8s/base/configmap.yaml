@@ -1,21 +1,19 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: datacompass-dashboard-config
+  name: datacompass-frontend-config
   labels:
-    app: datacompass-dashboard
-    component: frontend
+    app: datacompass-frontend
 data:
   # URL da API do backend (usando service interno do Kubernetes)
-  api-url: "http://datacompass-api-service.default.svc.cluster.local"
+  api-url: "http://whatsapp-analytics-api-service.default.svc.cluster.local"
   
   # URL da API externa (para requests do browser)
   external-api-url: "https://api.ultimatesystems.io"
   
   # Configurações da aplicação
-  app-name: "DataCompass Dashboard"
+  app-name: "DataCompass"
   app-version: "1.0.0"
-  app-component: "analytics-dashboard"
   
   # Domínios configurados
   domain-name: "ultimatesystems.io"
@@ -26,13 +24,12 @@ data:
   # URLs base
   base-url: "https://ultimatesystems.io"
   api-base-url: "https://api.ultimatesystems.io"
-  dashboard-url: "https://dashboard.ultimatesystems.io"
   
   # Configurações do Nginx
   nginx-worker-processes: "auto"
   nginx-worker-connections: "1024"
   
   # CORS Configuration
-  cors-origin: "https://dashboard.ultimatesystems.io,https://api.ultimatesystems.io"
+  cors-origin: "https://ultimatesystems.io,https://api.ultimatesystems.io"
   cors-credentials: "true"
 

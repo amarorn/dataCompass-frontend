@@ -1,11 +1,9 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: datacompass-dashboard-service
+  name: datacompass-frontend-service
   labels:
-    app: datacompass-dashboard
-    component: frontend
-    tier: presentation
+    app: datacompass-frontend
 spec:
   type: ClusterIP
   ports:
@@ -14,6 +12,5 @@ spec:
     protocol: TCP
     name: http
   selector:
-    app: datacompass-dashboard
-    component: frontend
+    app: datacompass-frontend
 

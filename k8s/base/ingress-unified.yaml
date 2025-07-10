@@ -4,40 +4,45 @@ metadata:
   name: datacompass-unified-ingress
   labels:
     app: datacompass
-    component: ingress
+    component: unified-ingress
   annotations:
-    # AWS Load Balancer Controller
     kubernetes.io/ingress.class: "alb"
-    alb.ingress.kubernetes.io/scheme: "internet-facing"
-    alb.ingress.kubernetes.io/target-type: "ip"
-    alb.ingress.kubernetes.io/load-balancer-name: "ultimatesystems-alb"
-    
-    # Health Check Configuration
-    alb.ingress.kubernetes.io/healthcheck-path: "/health"
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:us-east-1:028425947301:certificate/66b70860-239e-4e7c-b81a-56f40159dd57"
     alb.ingress.kubernetes.io/healthcheck-interval-seconds: '30'
     alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
     alb.ingress.kubernetes.io/healthy-threshold-count: '2'
-    alb.ingress.kubernetes.io/unhealthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '3'
     alb.ingress.kubernetes.io/success-codes: '200'
-    
-    # Load Balancer Configuration
-    alb.ingress.kubernetes.io/target-group-attributes: |
-      stickiness.enabled=false,
-      deregistration_delay.timeout_seconds=30
-    
-    # Tags
-    alb.ingress.kubernetes.io/tags: "Environment=base,Project=datacompass,Component=unified"
+    alb.ingress.kubernetes.io/load-balancer-name: "ultimatesystems-unified-alb"
+    alb.ingress.kubernetes.io/tags: "Environment=production,Project=datacompass,Component=unified"
+    # CORS headers
+    alb.ingress.kubernetes.io/actions.response-headers: |
+      {
+        "type": "response-headers",
+        "responseHeadersConfig": {
+          "customHeaders": {
+            "Access-Control-Allow-Origin": "https://ultimatesystems.io",
+            "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type,Authorization,X-Requested-With",
+            "Access-Control-Allow-Credentials": "true"
+          }
+        }
+      }
 spec:
   rules:
-  # Dashboard Analytics - dashboard.ultimatesystems.io
-  - host: dashboard.ultimatesystems.io
+  # Frontend - ultimatesystems.io
+  - host: ultimatesystems.io
     http:
       paths:
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: datacompass-dashboard-service
+            name: datacompass-frontend-service
             port:
               number: 80
   
@@ -49,25 +54,32 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: datacompass-api-service
+            name: whatsapp-analytics-api-service
             port:
               number: 80
       - path: /api
         pathType: Prefix
         backend:
           service:
-            name: datacompass-api-service
+            name: whatsapp-analytics-api-service
             port:
               number: 80
       - path: /health
+        pathType: Exact
+        backend:
+          service:
+            name: whatsapp-analytics-api-service
+            port:
+              number: 80
+      - path: /docs
         pathType: Prefix
         backend:
           service:
-            name: datacompass-api-service
+            name: whatsapp-analytics-api-service
             port:
               number: 80
   
-  # Admin Panel - administrativo.ultimatesystems.io (Future)
+  # Admin Panel - administrativo.ultimatesystems.io
   - host: administrativo.ultimatesystems.io
     http:
       paths:
@@ -75,7 +87,31 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: datacompass-dashboard-service
+            name: datacompass-frontend-service
+            port:
+              number: 80
+  
+  # Dashboard - dashboard.ultimatesystems.io
+  - host: dashboard.ultimatesystems.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: datacompass-frontend-service
+            port:
+              number: 80
+  
+  # WWW redirect
+  - host: www.ultimatesystems.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: datacompass-frontend-service
             port:
               number: 80
 
